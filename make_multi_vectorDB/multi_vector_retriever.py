@@ -120,3 +120,36 @@ def load_stores_and_create_multivectorRetriever(vectorstore_directory="./vectors
     )
 
     return retriever
+from graph_state.graph_state_chain import GraphState
+
+def load_stores_and_create_context_graph(state:GraphState):
+    vectorstore_directory=state["vectorstore_directory"]
+    docstore_path=state["docstore_path"]
+    
+    """
+    저장된 벡터 스토어와 docstore를 불러와 retriever를 생성합니다.
+    """
+    hf_embeddings = HuggingFaceEmbeddings(
+    model_name = "intfloat/multilingual-e5-large",
+    model_kwargs={'device':'cuda'})
+
+    # 벡터 스토어 로드 (Chroma 사용)
+    vectorstore = Chroma(
+        collection_name="multi-modal-rag",
+        embedding_function=hf_embeddings,
+        persist_directory=vectorstore_directory  # 저장된 벡터 스토어 위치
+    )
+
+    # 저장된 docstore 로드 (pickle 사용)
+    with open(docstore_path, "rb") as f:
+        docstore = pickle.load(f)
+
+    # 멀티 벡터 검색기 생성
+    retriever = MultiVectorRetriever(
+        vectorstore=vectorstore,
+        docstore=docstore,  # 로드된 docstore 사용
+        id_key="doc_id"
+    )
+    context = retriever.get_relevant_documents(state["query"])
+
+    return GraphState(context=context)

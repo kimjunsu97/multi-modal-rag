@@ -1,40 +1,41 @@
-from make_multi_vectorDB.multi_vector_retriever import load_stores_and_create_multivectorRetriever
-from chain.multimodal_chain import multi_modal_rag_chain
-from make_multi_vectorDB.image_utils import plt_img_base64
-from langgraph.graph import END, StateGraph
+from make_multi_vectorDB.multi_vector_retriever import load_stores_and_create_context_graph
+from chain.multimodal_chain_graph import multi_modal_rag_chain_graph
+import yaml
+from graph_state.graph_state_chain import GraphState
+from langgraph.graph import StateGraph
+from langgraph.checkpoint.memory import MemorySaver
+from langchain_core.runnables import RunnableConfig
+
+with open('config.yaml', 'r') as f:
+    config = yaml.full_load(f)
 
 import warnings
 warnings.filterwarnings("ignore")
 
 workflow = StateGraph(GraphState)
-def execute_chain(multi_vector_retriever, query):
-    chain = multi_modal_rag_chain(multi_vector_retriever)
-    return chain.invoke(query)
 
-load_stores_node = GraphNode(
-    name="load_stores",
-    func=load_stores_and_create_multivectorRetriever,
-    inputs={"vectorstore_directory": "./store/vectorstore/multi_modal_data", "docstore_path": "./store/docstore/docstore.pkl"},
-)
+workflow.add_node("load_multi-vector-retriever",load_stores_and_create_context_graph)
+workflow.add_node("multimodal_rag", multi_modal_rag_chain_graph)
 
-execute_chain_node = GraphNode(
-    name="execute_chain",
-    func=execute_chain,
-    inputs={"query": "RAFT가 무엇인가요?"},
-)
+workflow.add_edge("load_multi-vector-retriever","multimodal_rag")
 
-# 노드 간의 edge 연결
-# load_stores_node의 출력인 multi_vector_retriever를 execute_chain_node의 입력으로 연결
-edge = Edge(
-    source=load_stores_node,
-    source_output="output",  # load_stores_node의 출력
-    destination=execute_chain_node,
-    destination_input="multi_vector_retriever"  # execute_chain_node의 입력으로 연결
-)
-graph = Graph(nodes=[load_stores_node, execute_chain_node], edges=[edge])
-state = GraphState()
+workflow.set_entry_point("load_multi-vector-retriever")
 
-result = graph.run(state)
 
-# 결과 출력
-print(result["execute_chain"])
+memory = MemorySaver()
+app = workflow.compile(checkpointer=memory)
+
+graph_png = app.get_graph(xray=True).draw_mermaid_png()
+
+# 파일로 저장
+with open("rag_graph_output.png", "wb") as f:
+    f.write(graph_png)
+ 
+graph_config = RunnableConfig(recursion_limit=20, configurable={"thread_id": "Multi-RAG-Answer"})
+
+query = "RAFT가 무엇인가요?"
+
+inputs = GraphState(query=query,docstore_path=config["store"]["docstore_path"] ,vectorstore_directory=config["store"]["vectorstore_directory"])
+output = app.invoke(inputs,config=graph_config)
+
+print(output["answer"])

@@ -21,6 +21,9 @@ $python make_multi_vectordb_graph.py
 ## Multi-Modal LLM RAG 실행 방법
 ```
 $python multi_modla_rag_basic.py
+or
+$python multi_modla_rag_basic.py
+# 구현 방식은 다르나 결과는 동일
 ```
 
 
