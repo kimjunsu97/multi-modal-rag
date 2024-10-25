@@ -1,0 +1,10 @@
+python-dotenv
+pymupdf
+langchain-core
+langchain-openai
+langchain
+langchain-teddynote
+langchain-community
+chromadb
+langgraph
+yaml

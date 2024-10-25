@@ -1,0 +1,5 @@
+.env
+store/docstore
+store/graph_state
+store/vectorstore
+data/
